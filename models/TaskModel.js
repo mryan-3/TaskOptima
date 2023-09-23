@@ -57,6 +57,7 @@ class Task {
 
     async delete() {
         try{
+            
             const { data, error } = await supabase
                 .from('tasks')
                 .delete()
