@@ -9,7 +9,7 @@ class Task {
         this.priority = priority
     }
 
-    async create(){
+    static async create(){
         //Insert a new task into the tasks table
         try{
             const { data, error } = await supabase
@@ -32,7 +32,7 @@ class Task {
         }
     }
     //Update tasks
-    async update() {
+    static async update() {
         try{
             const { data, error } = await supabase
                 .from('tasks')
@@ -55,7 +55,7 @@ class Task {
         }
     }
 
-    async delete() {
+    static async delete() {
         try{
             
             const { data, error } = await supabase
@@ -82,6 +82,25 @@ class Task {
             return data
         } catch(error){
             throw new Error("Failed to delete task")
+        }
+    }
+
+    static async getById(id){
+        try{
+            const { data, error } = await supabase
+                .from("tasks")
+                .select()
+                .eq("id", id)
+                .single()
+            if (error){
+                throw new Error(error.message)
+            }
+            if (data){
+                return new Task(data)
+            }
+            return null
+        } catch(error){
+            throw new Error("Failed to get task")
         }
     }
 }
