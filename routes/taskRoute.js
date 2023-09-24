@@ -3,7 +3,7 @@ const Task = require('../models/TaskModel')
 const { openAIApi } = require('openai')
 const router = express.Router()
 router.use(express.json())
-const openai = new openAIApi('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')
+const openai = new openAIApi('')
 
 // Function to analyze task urgency with OpenAI
 async function analyzeTaskUrgency(taskDescription) {
