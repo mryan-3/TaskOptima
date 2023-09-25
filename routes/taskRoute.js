@@ -23,6 +23,21 @@ async function analyzeTaskUrgency(taskDescription) {
     return urgencyLevel;
 }
 
+// Function to automate a task
+async function automateTask(taskTitle, taskDescription){
+    const prompt = `I want you to do the following task: ${taskTitle}.The following is the task description: ${taskDescription}`
+    const options = {
+        prompt,
+        max_tokens: 100,
+        temperature: 0.5,
+        n:1
+    }
+    const { choices } = await openai.complete(options)
+    const taskSolution = choices[0].text.trim()
+
+    return taskSolution
+}
+
 router.get('/tasks/prioritize', async(req, res) => {
     try{
         const tasks = await Task.getAllTasks()
@@ -94,5 +109,24 @@ router.delete('/tasks/:id', async(req, res) => {
         res.status(500).json({ error: error.message})
     }
 })
+
+// ROute to automate based on id
+router.get('/automate-task/:id', async(req, res) => {
+    try{
+        const taskId = req.params.id
+        const task = await Task.getById(taskId)
+
+        if (task) {
+            const { title, description } = task
+            const taskSolution = await automateTask(title, description)
+            res.json({ taskSolution })
+        } else{
+            res.status(404).json({ error: "Task not found"})
+        }
+    } catch(error){
+        res.status(500).json({ error: error.message})
+    }
+})
+
 
 module.exports =router
