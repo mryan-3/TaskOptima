@@ -1,132 +1,145 @@
 const express = require('express')
-const Task = require('../models/TaskModel')
-const { openAIApi } = require('openai')
 const router = express.Router()
 router.use(express.json())
-const openai = new openAIApi('')
+const supabase = require('../supabaseConfig')
+const e = require('express')
 
-// Function to analyze task urgency with OpenAI
-async function analyzeTaskUrgency(taskDescription) {
-    const prompt = `Task Description: ${taskDescription}\nUrgency level:`;
-  
-    const options = {
-      prompt,
-      max_tokens: 1,
-      temperature: 0.3,
-      n: 1
-    };
-  
-    const { choices } = await openai.complete(options);
-  
-    const urgencyLevel = choices[0].text.trim();
-  
-    return urgencyLevel;
-}
-
-// Function to automate a task
-async function automateTask(taskTitle, taskDescription){
-    const prompt = `I want you to do the following task: ${taskTitle}.The following is the task description: ${taskDescription}`
-    const options = {
-        prompt,
-        max_tokens: 100,
-        temperature: 0.5,
-        n:1
-    }
-    const { choices } = await openai.complete(options)
-    const taskSolution = choices[0].text.trim()
-
-    return taskSolution
-}
-
-router.get('/tasks/prioritize', async(req, res) => {
+//Create
+router.post("/tasks", async(req, res) => {
     try{
-        const tasks = await Task.getAllTasks()
-
-        //analyze urgency
-        for (const task of tasks){
-            task.urgency = await analyzeTaskUrgency(task.description)
-        }
-        tasks.sort((a, b) => a.urgency - b.urgency)
+        const { title, description, dueDate, priority} = req.body
+        const{ data: task, error } = await supabase
+            .from("tas")
+            .insert([{title, description , dueDate, priority}])
+            .single()
+        if (error) throw error
+        res.status(201).json(task)
+    }catch(error){
+        res.status(500).json({ error: error.message})
+    }
+})
+// Read
+router.get("/tasks", async(req, res) => {
+    try{
+        const { data: tasks, error } = await supabase
+            .from('tas')
+            .select('*')
+        if (error) throw error
         res.json(tasks)
     } catch(error){
         res.status(500).json({ error: error.message})
     }
 })
 
-//CREATE
-router.post('/tasks', async(req, res) => {
+router.get("/tasks/:id", async(req, res) => {
     try{
-        const task = await Task.create
+        const id = req.params.id
+        const { data: task, error} = await supabase
+            .from("tas")
+            .select('*')
+            .eq("id", id)
+            .single()
+        if (error) throw error
         res.json(task)
     } catch(error){
         res.status(500).json({ error: error.message})
     }
 })
 
-// READ
-router.get('/tasks', async (req, res) => {
+// router.get("/tasks/search", async(req, res) => {
+//     const query = req.query.q
+//     try{
+//         const { data: task, error} = await supabase
+//             .from('tas')
+//             .select('*')
+//             .ilike('title', `%${query}%`)
+//             .or(`description.ilike.%${query}%`)
+//         if (error) throw error
+//         res.json(task)
+//     } catch(error){
+//         res.status(500).json({ error: error.message})
+//     }
+// })
+
+router.get('/tasks/priority/:priority', async(req, res) => {
     try{
-        const tasks = await Task.getAllTasks()
+        const priority = req.params.priority
+        const { data: tasks, error } = await supabase
+            .from('tas')
+            .select('*')
+            .eq('priority', priority)
+        if (error) throw error
         res.json(tasks)
     } catch(error){
         res.status(500).json({ error: error.message})
     }
 })
-
-router.get('/tasks/:id', async(req, res) => {
+//Update
+router.put("/tasks/:id", async(req, res) => {
     try{
-        const task = await Task.getById(req.params.id)
-        if (task){
-            res.json(task)
-        } else{
-            res.status(404).json({ error: "Task not found"})
-        }
+        const id = req.params.id
+        const { title, description, dueDate, priority} = req.body
+        const {data: task, error} = await supabase
+            .from("tas")
+            .update({title, description, dueDate, priority})
+            .eq("id", id)
+            .single()
+
+        if (error) throw error
+        res.json(task)
+    } catch(error){
+        res.status(500).json({ error: error.message})
+    }
+}) 
+//Mark a task as completed
+router.put("/tasks/:id/complete", async(req, res) => {
+    try{
+        const id = req.params.id
+        const { data: task, error } = await supabase
+            .from("tas") 
+            .update({completed: true})
+            .eq("id", id)
+            .single()
+        if (error) throw error
+        res.json(task)
     } catch(error){
         res.status(500).json({ error: error.message})
     }
 })
 
-//UPDATE
-router.put('/tasks/:id', async (req, res) => {
+// Delete
+router.delete("/tasks/:id", async(req, res) => {
     try{
-        const task = await Task.update(req.params.id, req.body)
-        if (task) {
-            res.json(task)
-        }else{
-            res.status(404).json({ error: "Task not found"})
-        }
-    } catch(eror){
-        res.status(500).json({ error: error.message})
-    }
-})
-
-//DELETE
-router.delete('/tasks/:id', async(req, res) => {
-    try{
-        const task = await Task.delete(req.params.id)
-        res.status(204)
+        const id = req.params.id
+        const { data: task, error } = await supabase
+            .from("tas")
+            .delete()
+            .eq('id', id)
+            .single()
+        if (error) throw error
+        res.json(task)
     } catch(error){
         res.status(500).json({ error: error.message})
     }
 })
 
-// ROute to automate based on id
-router.get('/automate-task/:id', async(req, res) => {
+router.delete('/tasks/delete', async(req, res) => {
     try{
-        const taskId = req.params.id
-        const task = await Task.getById(taskId)
-
-        if (task) {
-            const { title, description } = task
-            const taskSolution = await automateTask(title, description)
-            res.json({ taskSolution })
-        } else{
-            res.status(404).json({ error: "Task not found"})
-        }
+        const taskIds = req.body.taskIds
+        const { data: deletedTasks, error} = await supabase
+            .from('tas')
+            .delete()
+            .in('id', taskIds)
+        if (error) throw error
+        res.json(deletedTasks)
     } catch(error){
         res.status(500).json({ error: error.message})
     }
 })
+//try it put
+// {
+//     "taskIds": ["id1", "id2", "id3"]
+//   }
 
 
-module.exports =router
+module.exports=router

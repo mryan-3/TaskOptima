@@ -4,7 +4,7 @@ const taskRoutes = require('./routes/taskRoute')
 app.use(express.json())
 app.use('/', taskRoutes)
 
-const port = 3000
+const port = 8080
 app.listen(port, () => {
     console.log(`Server running on port ${port}`)
 })
